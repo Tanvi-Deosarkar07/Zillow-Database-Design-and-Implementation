@@ -1,0 +1,100 @@
+Zillow Database Analysis- SQL Portfolio Project
+
+
+--1. What is the top 5th ranked mortgage amount for each home type and show the provider names
+
+ 
+Select property_id, home_type, mortgage_id, mortgage_provider, mortgage_amount from
+(
+select p.property_id, p.home_type, m.mortgage_id, m.mortgage_provider, m.mortgage_amount,
+rank() over(partition by home_type order by mortgage_amount DESC) as amount_rank
+from property_mortgage m
+join property p
+on p.property_id= m.property_id
+) as ex
+where amount_rank = 5;
+
+ 
+
+-- 2. For each rent property show the rent (price) in the period between 1st Jan and 15th Jan 2023. 
+show current rent and rent on the next day. Also, show the current rent  and the rent on the previous start date. 
+
+ 
+ 
+ 
+ 
+select p.property_id, r.price, r.maintenace_amount, r.rent_startdate,
+lead(price) over(order by rent_id) as LEAD_AMT,
+LAG(price) over(order by rent_id) as LAG_AMT
+from rent_property r
+inner join property p
+on p.property_id = r.property_id
+where rent_startdate between '2023-01-01' and '2023-01-15';
+
+
+ 
+--3. For each property show the amenities details. show one more column availability 
+when amenities are study room or Home Office "study area available', for garage 'parking space available' else show other. 
+When amenities not available show null values.
+
+ 
+ 
+select p.property_id, p.home_type, a.amenities_id, a.name,
+case when name = 'Study Room' or 'Home Office' then 'study area available'
+ when name = 'garage'  then 'parking space available'
+ else 'other'
+ end as Availability
+from amenities a
+right join property p
+on a.property_id = p.property_id;
+
+
+ 
+--4. Find the rent for each property and find average rent. Find the difference between average rent and the rent show the highest rent first
+
+select p.property_id, p.home_type, r.rent_id, r.price, r.rent_startdate, r.rent_enddate,
+avg(price) over(order by price DESC rows between current row and unbounded following) as average_price,
+price - avg(price) over(order by price DESC rows between current row and unbounded following) as Difference
+from property p
+left join rent_property r
+on r.property_id = p.property_id;
+ 
+ 
+ 
+--5. Show the all the property _id and review details with rating ranking top 4 form 10th Sept to 31st Dec 2024
+
+Select property_id, review_id, rating,review_date, comments, DENSE_Ranking from
+( Select p.property_id, r.review_id, r.rating, r.review_date, r.comments,
+DENSE_RANK() OVER( order by rating) as DENSE_Ranking
+FROM review r
+join property p
+on p.property_id = r.property_id) as ex
+where review_date between '2024-09-10' and '2024-12-31'and 
+DENSE_Ranking = 4;
+
+ 
+--6. Zillow makes 10% profit on the selling price when property is sold. Show the profit made by zillow for each sold property according to city
+
+select p.property_id, l.city, p.listing_status, b.sell_price, 0.1 * b.sell_price as Profit
+from property p
+join location l
+on l.property_id=p.property_id
+join buying_agreement b
+on p.property_id = b.property_id
+where p.listing_status = "sold";
+
+ 
+ 
+--7.Number of properties per city and state where properties are available (listing_status = open)
+
+select  l.city, l.state, p.home_type, p.listing_status, count(distinct p.property_id) as Number_of_properties
+from property p
+inner join location l
+on p.property_id = l.property_id
+where listing_status = 'open'
+group by city, state, p.home_type
+order by city DESC;
+
+
+
+
